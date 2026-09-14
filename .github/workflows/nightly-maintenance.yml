@@ -34,10 +34,7 @@ on:
         default: false
         type: boolean
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+permissions: read-all
 
 concurrency:
   group: nightly-${{ github.ref }}
@@ -53,25 +50,36 @@ jobs:
   preflight:
     name: 🛫 Pre-flight Checks
     runs-on: [self-hosted, linux, panopticon, ci, small]
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Check conditions
         id: check
-        run: |
-          echo "📋 Checking pre-flight conditions..."
-          OPEN_PRS=$(gh pr list --label "night-shift" --state open --json number -q 'length')
-          if [ "$OPEN_PRS" -gt 0 ]; then
-            echo "⚠️ Found $OPEN_PRS open night-shift PR(s), skipping..."
-            echo "should_run=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          echo "✅ Pre-flight passed"
-          echo "should_run=true" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            core.info('📋 Checking pre-flight conditions...');
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const nightShiftPulls = pulls.filter((pull) =>
+              (pull.labels || []).some((label) => label.name === 'night-shift')
+            );
+
+            if (nightShiftPulls.length > 0) {
+              core.info(`⚠️ Found ${nightShiftPulls.length} open night-shift PR(s), skipping...`);
+              core.setOutput('should_run', 'false');
+              return;
+            }
+
+            core.info('✅ Pre-flight passed');
+            core.setOutput('should_run', 'true');
 
   # ============================================================================
   # MAINTENANCE TASKS
@@ -81,6 +89,8 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.should_run == 'true'
     runs-on: [self-hosted, linux, panopticon, ci, small]
+    permissions:
+      contents: write
 
     outputs:
       changes_made: ${{ steps.commit.outputs.changes_detected }}
@@ -132,14 +142,21 @@ jobs:
       # TASK 2: Dependency Evolution
       - name: "🧬 Dependency Evolution"
         id: evolve
-        continue-on-error: true
         run: |
           echo "## 🧬 Dependency Evolution" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ inputs.task }}" = "night-shift" ] || [ "${{ inputs.task }}" = "deps-only" ] || [ "${{ github.event_name }}" = "schedule" ]; then
-            npm update 2>&1 | tee update-output.txt || true
+            set +e
+            pnpm update 2>&1 | tee update-output.txt
+            UPDATE_STATUS=${PIPESTATUS[0]}
+            set -e
 
-            if git diff --quiet package.json package-lock.json; then
+            if [ "$UPDATE_STATUS" -ne 0 ]; then
+              echo "❌ Dependency update failed" >> $GITHUB_STEP_SUMMARY
+              exit "$UPDATE_STATUS"
+            fi
+
+            if git diff --quiet package.json pnpm-lock.yaml; then
               echo "✅ No dependency updates available" >> $GITHUB_STEP_SUMMARY
               echo "deps_updated=false" >> $GITHUB_OUTPUT
             else
@@ -156,7 +173,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "## 🔍 TypeScript Check" >> $GITHUB_STEP_SUMMARY
-          npm run lint 2>&1 | tee ts-output.txt
+          pnpm run lint 2>&1 | tee ts-output.txt
 
           if [ ${PIPESTATUS[0]} -eq 0 ]; then
             echo "✅ TypeScript clean" >> $GITHUB_STEP_SUMMARY
@@ -188,11 +205,11 @@ jobs:
       - name: 💾 Commit Changes
         if: inputs.dry_run != true
         id: commit
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7.2.0
         with:
           commit_message: "chore: nightly maintenance updates [skip ci]"
           branch: ${{ env.BRANCH }}
-          file_pattern: 'package.json package-lock.json'
+          file_pattern: 'package.json pnpm-lock.yaml'
           skip_dirty_check: false
           create_branch: true
 
@@ -206,20 +223,46 @@ jobs:
       needs.maintenance.outputs.changes_made == 'true' &&
       inputs.skip_pr != true
     runs-on: [self-hosted, linux, panopticon, ci, small]
+    permissions:
+      pull-requests: write
+      issues: write
     steps:
-      - uses: actions/checkout@v4
-
       - name: Create Pull Request
-        run: |
-          BRANCH="night-shift/$(date +%Y-%m-%d)"
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "🌙 Night Shift: $(date +%Y-%m-%d)" \
-            --body "${{ needs.maintenance.outputs.summary }}" \
-            --label "night-shift,automated"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NIGHT_SHIFT_SUMMARY: ${{ needs.maintenance.outputs.summary }}
+        with:
+          script: |
+            const date = new Date().toISOString().split('T')[0];
+            const branch = `night-shift/${date}`;
+            const existing = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${branch}`,
+              per_page: 10,
+            });
+
+            if (existing.data.length > 0) {
+              core.info(`Night-shift PR already exists: #${existing.data[0].number}`);
+              return;
+            }
+
+            const created = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: 'master',
+              head: branch,
+              title: `🌙 Night Shift: ${date}`,
+              body: process.env.NIGHT_SHIFT_SUMMARY || 'Automated nightly maintenance.',
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: created.data.number,
+              labels: ['night-shift', 'automated'],
+            });
 
   # ============================================================================
   # FAILURE NOTIFICATION
@@ -229,9 +272,11 @@ jobs:
     needs: [preflight, maintenance]
     if: failure()
     runs-on: [self-hosted, linux, panopticon, ci, small]
+    permissions:
+      issues: write
     steps:
       - name: Create failure issue
-        uses: actions/github-script@v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             await github.rest.issues.create({

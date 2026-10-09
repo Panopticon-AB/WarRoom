@@ -1,39 +1,24 @@
-# node-version: 22 compliance comment for Governance Guard
-name: 🚀 Coolify Deploy
+name: "Coolify deploy — approval gate unavailable"
 
+# Containment for WarRoom #41: neither a push to master/main/develop nor
+# a manual workflow_dispatch is production-deployment authorization.
+# Until an exact app/revision/environment operator approval broker and
+# separate live-approved execution identity have been commissioned,
+# this legacy path must deny BEFORE obtaining credentials or network access.
 on:
-  push:
-    branches: [main, master, develop] # Track main/master as production, develop as staging
   workflow_dispatch:
 
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
-  deploy:
-    name: Trigger Coolify Deployment
-    runs-on: [self-hosted, linux, panopticon, ci, small]
-    timeout-minutes: 3
+  block-unapproved-deploy:
+    name: Deny deployment until canonical approval integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
     steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          args: --accept-dns=true
-
-      - name: Trigger Coolify Deploy API
-        env:
-          COOLIFY_HOST: ${{ secrets.COOLIFY_HOST || 'http://ironforge-coolify.tailafb692.ts.net:8000' }}
-          # WarRoom Production UUID
-          APP_UUID: "nsgw00s4csww8ocgskoswk4g"
+      - name: Fail closed without scoped deployment approval
+        shell: bash
         run: |
-          echo "🚀 Triggering deployment for WarRoom (UUID: $APP_UUID, ref: ${{ github.ref }})..."
-
-          curl --silent --fail --show-error \
-            --request GET \
-            --url "$COOLIFY_HOST/api/v1/deploy?uuid=$APP_UUID&force=false" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
-            --header "Accept: application/json"
-
-          echo -e "\n✅ Deployment successfully queued in Coolify!"
+          echo "::error title=Legacy Deployment Disabled::Workflow dispatch is not a production approval. See WarRoom #41."
+          exit 1

@@ -14,7 +14,9 @@ repository. The actual product is
 [Panopticon-AB/panopticon-command-center](https://github.com/Panopticon-AB/panopticon-command-center).
 
 The existing
+<!-- markdownlint-disable MD013 -->
 [accepted ADR 0005](https://github.com/Techlemariam/panopticon-infra/blob/main/docs/architecture/adr/0005-command-center-repo-runtime-ownership.md)
+<!-- markdownlint-enable MD013 -->
 and [infra #2825](https://github.com/Techlemariam/panopticon-infra/issues/2825)
 own the split:
 

@@ -1,27 +1,19 @@
-import { type RemediationAction, executeAction } from '@/lib/autonom';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-  try {
-    const action: RemediationAction = await request.json();
-
-    if (!action || !action.type || !action.target) {
-      return NextResponse.json({ error: 'Invalid action payload' }, { status: 400 });
+// WarRoom is an observability client, not an authorization/execution service.
+// Legacy POST accepted arbitrary RemediationAction and called executeAction()
+// without a trusted actor, exact-scope approval, idempotency or replay guard.
+// Fail closed until the canonical protected-operation broker is commissioned.
+// See Panopticon-AB/WarRoom#43 and Panopticon infra#1547.
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'MUTATION_DISABLED',
+      message: 'WarRoom remediation execution requires a separate approved operation broker.',
+    },
+    {
+      status: 403,
+      headers: { 'Cache-Control': 'no-store' },
     }
-
-    console.log(`[Remedy] Received execution request for: ${action.id} (${action.type})`);
-
-    // In the future, we could add RBAC checks here
-
-    const result = await executeAction(action);
-
-    if (result.success) {
-      return NextResponse.json({ success: true, message: result.message });
-    }
-
-    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
-  } catch (error) {
-    console.error('[Remedy API Error]', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+  );
 }

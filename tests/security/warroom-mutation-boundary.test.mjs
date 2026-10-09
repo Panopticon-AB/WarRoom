@@ -25,16 +25,16 @@ function loadExport(path, allowedDependencies = {}) {
   assert.deepEqual(
     transpiled.diagnostics.filter((d) => d.category === ts.DiagnosticCategory.Error),
     [],
-    'TypeScript transpilation failed for ' + path
+    `TypeScript transpilation failed for ${path}`
   );
 
   const module = { exports: {} };
   const requireSafe = (name) => {
-    assert.ok(Object.hasOwn(allowedDependencies, name), path + ' unexpectedly imported ' + name);
+    assert.ok(Object.hasOwn(allowedDependencies, name), `${path} unexpectedly imported ${name}`);
     return allowedDependencies[name];
   };
   const script = runInNewContext(
-    '(function (require, module, exports) {\n' + transpiled.outputText + '\n})',
+    `(function (require, module, exports) {\n${transpiled.outputText}\n})`,
     { console, process: { env: {} } },
     { timeout: 1000 }
   );
@@ -51,7 +51,7 @@ const responseStub = {
 };
 
 for (const path of ['src/app/api/remedy/route.ts', 'src/app/api/dispatch/route.ts']) {
-  test(path + ' denies arbitrary requests without reading body', async () => {
+  test(`${path} denies arbitrary requests without reading body`, async () => {
     const { POST } = loadExport(path, { 'next/server': responseStub });
     assert.equal(typeof POST, 'function');
     for (const payload of [
@@ -115,10 +115,10 @@ test('GitHub library denies arbitrary dispatch coordinates', async () => {
   const { dispatchWorkflow } = loadExport('src/lib/github.ts', {
     octokit: { Octokit: FakeOctokit },
   });
-  const response = await dispatchWorkflow(
-    'attacker', 'other-repo', 'dangerous-mutation', 'main',
-    { source: 'telegram', approved: true }
-  );
+  const response = await dispatchWorkflow('attacker', 'other-repo', 'dangerous-mutation', 'main', {
+    source: 'telegram',
+    approved: true,
+  });
   assert.equal(response.success, false);
   assert.equal(response.error, disabled);
   assert.equal(dispatches, 0);
@@ -130,7 +130,7 @@ test('mutation routes cannot regain direct mutator imports or network calls', ()
     assert.doesNotMatch(
       source,
       /\b(?:executeAction|dispatchWorkflow|deployApplication|createDispatchEvent|fetch)\s*\(/,
-      path + ' must remain deny-only'
+      `${path} must remain deny-only`
     );
     assert.doesNotMatch(source, /\brequest\.json\s*\(/);
   }

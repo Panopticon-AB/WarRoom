@@ -40,8 +40,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           ERRORS=0
 
-          # Workflows exempt from full Node checks
-          EXEMPT="governance-guard.yml coolify-deploy.yml"
+          # Deny-only quarantine workflows have no Node runtime. They are
+          # independently audited for zero write/deploy capability by the
+          # hosted deny-legacy-mutation-regressions job above; do not require
+          # a fake Node version marker to validate security confinement.
+          EXEMPT="governance-guard.yml coolify-deploy.yml self-heal.yml"
 
           for file in .github/workflows/*.yml; do
             BASENAME=$(basename "$file")

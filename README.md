@@ -18,7 +18,9 @@ ported into that product.
 Read the [WarRoom -> Command Center migration map](docs/warroom-command-center-migration.md)
 and [WarRoom migration issue #29](https://github.com/Panopticon-AB/WarRoom/issues/29).
 
+<!-- markdownlint-disable MD013 -->
 The accepted [Command Center ownership ADR 0005](https://github.com/Techlemariam/panopticon-infra/blob/main/docs/architecture/adr/0005-command-center-repo-runtime-ownership.md)
+<!-- markdownlint-enable MD013 -->
 assigns product UI to Command Center and security/runtime/deployment authority
 to Panopticon infra and canonical domain services. GitHub remains the
 source of truth for work; Command Center is a read/decision projection only.

@@ -38,6 +38,9 @@ jobs:
       - name: Enforce legacy mutation quarantines
         run: node --test tests/security/workflow-quarantine.test.mjs
 
+      - name: Enforce remediation API deny-only contract
+        run: node --test tests/security/remedy-api-guard.test.mjs
+
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:

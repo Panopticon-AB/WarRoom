@@ -12,6 +12,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deny-legacy-mutation-regressions:
+    name: Deny legacy self-heal and deploy bypasses
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    steps:
+      - name: Checkout PR revision without persisted token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run fail-closed workflow negative tests
+        run: node --test tests/security/warroom-workflow-mutation-deny.test.mjs
+
   audit-workflows:
     name: Audit Workflow Standards
     runs-on: [self-hosted, linux, panopticon, ci, small]
@@ -26,8 +40,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           ERRORS=0
 
-          # Workflows exempt from full Node checks
-          EXEMPT="governance-guard.yml coolify-deploy.yml"
+          # Deny-only quarantine workflows have no Node runtime. They are
+          # independently audited for zero write/deploy capability by the
+          # hosted deny-legacy-mutation-regressions job above; do not require
+          # a fake Node version marker to validate security confinement.
+          EXEMPT="governance-guard.yml coolify-deploy.yml self-heal.yml"
 
           for file in .github/workflows/*.yml; do
             BASENAME=$(basename "$file")

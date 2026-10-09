@@ -1,39 +1,22 @@
-# node-version: 22 compliance comment for Governance Guard
-name: 🚀 Coolify Deploy
+# WarRoom #41: default-branch pushes and workflow_dispatch are NOT
+# authorization to deploy. Re-enable only with a canonical exact-revision,
+# operator-approved deployment receipt and a separately scoped live executor.
+name: 🔒 Legacy Coolify Deploy — Mutation Disabled
 
 on:
-  push:
-    branches: [main, master, develop] # Track main/master as production, develop as staging
   workflow_dispatch:
 
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
-  deploy:
-    name: Trigger Coolify Deployment
-    runs-on: [self-hosted, linux, panopticon, ci, small]
-    timeout-minutes: 3
+  deny-unapproved-deploy:
+    name: Deny unbrokered production deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
     steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          args: --accept-dns=true
-
-      - name: Trigger Coolify Deploy API
-        env:
-          COOLIFY_HOST: ${{ secrets.COOLIFY_HOST || 'http://ironforge-coolify.tailafb692.ts.net:8000' }}
-          # WarRoom Production UUID
-          APP_UUID: "nsgw00s4csww8ocgskoswk4g"
+      - name: Fail closed before credential or network access
+        shell: bash
         run: |
-          echo "🚀 Triggering deployment for WarRoom (UUID: $APP_UUID, ref: ${{ github.ref }})..."
-
-          curl --silent --fail --show-error \
-            --request GET \
-            --url "$COOLIFY_HOST/api/v1/deploy?uuid=$APP_UUID&force=false" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
-            --header "Accept: application/json"
-
-          echo -e "\n✅ Deployment successfully queued in Coolify!"
+          echo "::error title=PRODUCTION_DEPLOY_APPROVAL_REQUIRED::No direct deployment from GitHub push or manual trigger. See WarRoom #41."
+          exit 1

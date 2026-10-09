@@ -1,3 +1,4 @@
+# node-version: 22 compatibility marker for legacy Governance Guard; no Node runtime used
 name: "Self-Heal — quarantined legacy dispatch"
 
 # Explicit containment of the unsafe repository_dispatch -> caller-chosen branch

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const workflows = [
@@ -19,7 +19,7 @@ const workflows = [
 ];
 
 for (const entry of workflows) {
-  test(entry.name + ' has no mutating event, permissions or payload execution', () => {
+  test(`${entry.name} has no mutating event, permissions or payload execution`, () => {
     const workflow = readFileSync(entry.path, 'utf8');
     assert.match(workflow, entry.trigger);
     assert.match(workflow, /permissions:\s*\n\s*contents:\s*read/);
@@ -34,7 +34,7 @@ for (const entry of workflows) {
     );
   });
 
-  test(entry.name + ' exits with denial without calling an executor', () => {
+  test(`${entry.name} exits with denial without calling an executor`, () => {
     const workflow = readFileSync(entry.path, 'utf8');
     const match = workflow.match(/^\s{8}run: \|\n((?:^\s{10}.*\n?)+)/m);
     assert.ok(match, 'Expected unconditional script denial block');
@@ -43,7 +43,10 @@ for (const entry of workflows) {
       .map((line) => line.replace(/^\s{10}/, ''))
       .join('\n')
       .trim();
-    const commands = script.split('\n').map((line) => line.trim()).filter(Boolean);
+    const commands = script
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
     assert.equal(commands.length, 2, 'Only an error message and explicit failure permitted');
     assert.match(commands[0], /^echo "::error title=/);
     assert.equal(commands[1], 'exit 1');

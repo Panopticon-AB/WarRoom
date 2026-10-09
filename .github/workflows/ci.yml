@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Enforce legacy mutation quarantines
+        run: node --test tests/security/workflow-quarantine.test.mjs
+
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:

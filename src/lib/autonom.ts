@@ -26,55 +26,17 @@ export interface ExecutionResult {
 /**
  * Execution Bridge: Bridges prescriptions to actual infrastructure mutations.
  */
-export async function executeAction(action: RemediationAction): Promise<ExecutionResult> {
-  console.log(`[Autonom] Executing ${action.type} for ${action.target}...`);
-
-  try {
-    switch (action.type) {
-      case 'REDEPLOY': {
-        // Target is the app name, id might contain the uuid or we find it
-        // Note: For now, we assume id/action metadata has the uuid or we derive it
-        const uuid = action.id.startsWith('remedy-') ? action.id.replace('remedy-', '') : null;
-        if (!uuid) return { success: false, error: 'No UUID found for redeploy' };
-
-        const { deployApplication } = await import('./coolify');
-        const success = await deployApplication(uuid);
-
-        return {
-          success,
-          message: success ? `Redeployment triggered for ${action.target}` : 'Deployment failed',
-        };
-      }
-
-      case 'PATCH':
-      case 'SYNC': {
-        // Bridges to GitHub Workflows
-        const { dispatchWorkflow } = await import('./github');
-        const routine = action.routine || 'nightly-maint';
-        const result = await dispatchWorkflow('Techlemariam', 'WarRoom', routine, 'main', {});
-
-        return {
-          success: result.success,
-          message: result.success ? `Workflow '${routine}' dispatched.` : result.error,
-        };
-      }
-
-      default:
-        return {
-          success: false,
-          error: `Action type ${action.type} not yet implemented for ACTIVE execution.`,
-        };
-    }
-  } catch (error) {
-    console.error('[Autonom] Execution failed', error);
-    return { success: false, error: 'Internal execution bridge failure' };
-  }
+export async function executeAction(_action: RemediationAction): Promise<ExecutionResult> {
+  // This is a defense-in-depth boundary. HTTP/API handlers cannot directly
+  // invoke production or GitHub mutations until canonical approval brokerage
+  // is designed, reviewed and explicitly commissioned (WarRoom #43).
+  return { success: false, error: 'MUTATION_DISABLED' };
 }
 
 /**
  * Maps diagnostics from multiple vectors into actionable prescriptions.
  */
-import { TokenBurnSummary } from './token-burn';
+import type { TokenBurnSummary } from './token-burn';
 
 export async function generatePrescriptions(
   audit: AuditResult,

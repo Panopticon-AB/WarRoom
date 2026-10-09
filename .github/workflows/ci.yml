@@ -43,6 +43,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Deny unbrokered remediation and GitHub mutation
+        run: node --test tests/security/warroom-mutation-boundary.test.mjs
+
       - name: Agent Verify (Lint, Build, Security)
         run: pnpm run agent:verify
 

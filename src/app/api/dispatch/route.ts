@@ -1,15 +1,11 @@
-import { dispatchWorkflow } from '@/lib/github';
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { owner, repo, workflowId, ref, inputs } = body;
-
-  const result = await dispatchWorkflow(owner, repo, workflowId, ref, inputs);
-
-  if (result.success) {
-    return NextResponse.json({ success: true });
-  }
-
-  return NextResponse.json({ success: false, error: result.error }, { status: 500 });
+// PANOPTICON: Direct GitHub dispatch from caller-supplied owner/repo/workflow
+// bypasses canonical Work Order, identity, capability and approval checks.
+// WarRoom #43: fail closed until a reviewed operation broker exists.
+export async function POST() {
+  return NextResponse.json(
+    { success: false, error: 'MUTATION_DISABLED' },
+    { status: 403, headers: { 'Cache-Control': 'no-store' } }
+  );
 }

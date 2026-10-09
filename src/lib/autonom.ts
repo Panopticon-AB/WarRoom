@@ -36,7 +36,7 @@ export async function executeAction(_action: RemediationAction): Promise<Executi
 /**
  * Maps diagnostics from multiple vectors into actionable prescriptions.
  */
-import { TokenBurnSummary } from './token-burn';
+import type { TokenBurnSummary } from './token-burn';
 
 export async function generatePrescriptions(
   audit: AuditResult,

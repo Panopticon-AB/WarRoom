@@ -1,27 +1,11 @@
-import { type RemediationAction, executeAction } from '@/lib/autonom';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-  try {
-    const action: RemediationAction = await request.json();
-
-    if (!action || !action.type || !action.target) {
-      return NextResponse.json({ error: 'Invalid action payload' }, { status: 400 });
-    }
-
-    console.log(`[Remedy] Received execution request for: ${action.id} (${action.type})`);
-
-    // In the future, we could add RBAC checks here
-
-    const result = await executeAction(action);
-
-    if (result.success) {
-      return NextResponse.json({ success: true, message: result.message });
-    }
-
-    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
-  } catch (error) {
-    console.error('[Remedy API Error]', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+// PANOPTICON: No direct execution from UI/HTTP payloads.
+// WarRoom #43: only a reviewed canonical broker may perform controlled operations.
+// Re-enable solely through a separately approved, typed and audited broker adapter.
+export async function POST() {
+  return NextResponse.json(
+    { success: false, error: 'MUTATION_DISABLED' },
+    { status: 403, headers: { 'Cache-Control': 'no-store' } }
+  );
 }

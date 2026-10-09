@@ -46,30 +46,16 @@ export async function getWorkflows(owner: string, repo: string) {
 }
 
 export async function dispatchWorkflow(
-  owner: string,
-  repo: string,
-  workflowCommand: string,
-  ref = 'main',
-  inputs: Record<string, unknown> = {}
+  _owner: string,
+  _repo: string,
+  _workflowCommand: string,
+  _ref = 'main',
+  _inputs: Record<string, unknown> = {}
 ) {
-  try {
-    await octokit.rest.repos.createDispatchEvent({
-      owner,
-      repo,
-      event_type: 'remote-trigger',
-      client_payload: {
-        workflow: workflowCommand,
-        ref,
-        ...inputs,
-        timestamp: new Date().toISOString(),
-      },
-    });
-    return { success: true };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`Error dispatching workflow for ${repo}:`, error);
-    return { success: false, error: errorMessage };
-  }
+  // An arbitrary GitHub repository_dispatch cannot be authorized by caller
+  // parameters. Keep the read-only GitHub client and deny mutation at its
+  // library entrypoint until a separate typed broker exists (WarRoom #43).
+  return { success: false, error: 'MUTATION_DISABLED' };
 }
 
 function parseFrontmatter(content: string) {

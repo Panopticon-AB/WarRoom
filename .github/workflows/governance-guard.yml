@@ -12,6 +12,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deny-legacy-mutation-regressions:
+    name: Deny legacy self-heal and deploy bypasses
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    steps:
+      - name: Checkout PR revision without persisted token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run fail-closed workflow negative tests
+        run: node --test tests/security/warroom-workflow-mutation-deny.test.mjs
+
   audit-workflows:
     name: Audit Workflow Standards
     runs-on: [self-hosted, linux, panopticon, ci, small]
